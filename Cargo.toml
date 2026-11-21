@@ -1,0 +1,18 @@
+[package]
+name = "spotlight-saver"
+version = "1.0.0"
+edition = "2021"
+description = "Saves Windows Spotlight wallpapers to Pictures\\Wallpaper"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+dirs = "6"
+imagesize = "0.13"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
