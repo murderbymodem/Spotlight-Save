@@ -80,7 +80,7 @@ fn collect(value: &Value, out: &mut HashMap<String, Info>) {
     }
 }
 
-fn parse_ad(ad: &Value) -> Info {
+pub fn parse_ad(ad: &Value) -> Info {
     let text = |name: &str| {
         ad.get(name)
             .and_then(Value::as_str)

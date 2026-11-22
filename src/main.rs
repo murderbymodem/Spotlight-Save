@@ -8,12 +8,15 @@
 //!   spotlight-saver.exe --quiet      Save new wallpapers without any window.
 //!   spotlight-saver.exe --install    Run quietly every hour (Task Scheduler).
 //!   spotlight-saver.exe --uninstall  Remove the scheduled task.
+//!   spotlight-saver.exe --next       Switch to the next Spotlight wallpaper.
+//!   spotlight-saver.exe --previous   Switch to the previous Spotlight wallpaper.
 
 // No console window: this is a GUI-subsystem app that only shows a message box.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod info;
 mod jpeg;
+mod switch;
 
 use std::collections::HashSet;
 use std::fs;
@@ -35,7 +38,15 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let has = |flag: &str| args.iter().any(|a| a.eq_ignore_ascii_case(flag));
 
-    if has("--install") {
+    if has("--next") || has("--previous") {
+        let direction = if has("--next") { switch::Direction::Next } else { switch::Direction::Previous };
+        match switch::switch(direction) {
+            Ok(message) if !has("--quiet") => ui::info(&message),
+            Ok(_) => {}
+            Err(e) if !has("--quiet") => ui::error(&format!("Could not switch the wallpaper:\n\n{e}")),
+            Err(_) => std::process::exit(1),
+        }
+    } else if has("--install") {
         report(install_task(), "Spotlight Saver will now save new wallpapers every hour.");
     } else if has("--uninstall") {
         report(uninstall_task(), "The Spotlight Saver scheduled task was removed.");

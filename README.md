@@ -44,7 +44,14 @@ spotlight-saver.exe              Save new wallpapers and show a summary
 spotlight-saver.exe --quiet      Save new wallpapers without any window
 spotlight-saver.exe --install    Also save them every hour (Task Scheduler)
 spotlight-saver.exe --uninstall  Remove the hourly task
+spotlight-saver.exe --next       Switch to the next Spotlight wallpaper
+spotlight-saver.exe --previous   Switch to the previous Spotlight wallpaper
 ```
+
+`--next` and `--previous` move through the pictures Spotlight has downloaded
+(usually four), wrapping around at the ends. They change which picture
+Spotlight shows rather than setting the wallpaper, so Spotlight stays on. Add
+`--quiet` to skip the confirmation message, for example in a desktop shortcut.
 
 Windows only keeps a few Spotlight images at a time, so use `--install` to catch
 each one. Move the exe to a permanent folder first, because the scheduled task
