@@ -80,7 +80,7 @@ fn save_wallpapers() -> io::Result<Summary> {
     let mut already_had = 0;
     let date = date_string(SystemTime::now());
 
-    for file in candidate_files(&catalog) {
+    for file in candidate_files() {
         let Some((bytes, ext)) = read_wallpaper(&file) else { continue };
         let hash = fnv1a(jpeg::picture_data(&bytes));
         if !seen.insert(hash) {
@@ -104,10 +104,9 @@ fn save_wallpapers() -> io::Result<Summary> {
     Ok(Summary { saved, already_had, dest })
 }
 
-/// Every file in the folders where Windows keeps Spotlight images, plus the
-/// images the registry lists (such as the ones built into Windows).
-fn candidate_files(catalog: &Catalog) -> Vec<PathBuf> {
-    let mut files: Vec<PathBuf> = catalog.image_paths().cloned().collect();
+/// Every file in the folders where Windows keeps Spotlight images.
+fn candidate_files() -> Vec<PathBuf> {
+    let mut files = Vec::new();
     let Some(local) = dirs::data_local_dir() else { return files };
     let packages = local.join("Packages");
 

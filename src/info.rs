@@ -5,11 +5,12 @@
 //! `HKCU\Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight`. Each entry
 //! ("creative") names its image file in `ad.landscapeImage.asset`, which is how
 //! an image is matched to its details. The format isn't documented, so anything
-//! unexpected is skipped rather than guessed at.
+//! unexpected is skipped rather than guessed at. The list also includes the
+//! wallpapers built into Windows, but those are never scanned, so never saved.
 
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Info {
@@ -26,7 +27,7 @@ pub struct Info {
 }
 
 /// Image path → details, for every creative found in the registry.
-pub struct Catalog(HashMap<String, (PathBuf, Info)>);
+pub struct Catalog(HashMap<String, Info>);
 
 impl Catalog {
     pub fn load() -> Self {
@@ -47,13 +48,12 @@ impl Catalog {
     }
 
     pub fn get(&self, path: &Path) -> Option<&Info> {
-        self.0.get(&key(path)).map(|(_, info)| info)
+        self.0.get(&key(path))
     }
 
-    /// The image files the registry points at, so they are saved even when
-    /// they live outside the folders the app scans.
-    pub fn image_paths(&self) -> impl Iterator<Item = &PathBuf> {
-        self.0.values().map(|(path, _)| path)
+    #[cfg(test)]
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -64,14 +64,13 @@ fn key(path: &Path) -> String {
 
 /// Finds creatives anywhere in a JSON value, since where Windows nests them
 /// may change between builds.
-fn collect(value: &Value, out: &mut HashMap<String, (PathBuf, Info)>) {
+fn collect(value: &Value, out: &mut HashMap<String, Info>) {
     match value {
         Value::Array(items) => items.iter().for_each(|v| collect(v, out)),
         Value::Object(obj) => {
             if let Some(ad) = obj.get("ad") {
                 if let Some(asset) = ad.pointer("/landscapeImage/asset").and_then(Value::as_str) {
-                    let path = PathBuf::from(expand_env(asset));
-                    out.insert(key(&path), (path, parse_ad(ad)));
+                    out.insert(key(Path::new(&expand_env(asset))), parse_ad(ad));
                     return;
                 }
             }
@@ -174,7 +173,7 @@ mod tests {
     #[test]
     fn reads_default_creatives() {
         let catalog = Catalog::from_json(SAMPLE);
-        assert_eq!(catalog.image_paths().count(), 2);
+        assert_eq!(catalog.len(), 2);
 
         let path = Path::new(
             r"c:\windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\DesktopSpotlight\Assets\Images\IMAGE_2.jpg",
@@ -201,7 +200,7 @@ mod tests {
     #[test]
     fn ignores_unrelated_json() {
         let catalog = Catalog::from_json(r#"{"Version":0,"RetrieveIrisContentSuccess":false}"#);
-        assert_eq!(catalog.image_paths().count(), 0);
+        assert_eq!(catalog.len(), 0);
     }
 
     #[test]

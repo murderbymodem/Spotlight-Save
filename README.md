@@ -11,10 +11,6 @@ It doesn't need the Bing Wallpaper app and doesn't download anything.
 | Desktop (Windows 11) | `MicrosoftWindows.Client.CBS_cw5n1h2txyewy\LocalCache\Microsoft\IrisService\*` |
 | Lock screen | `Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy\LocalState\Assets` |
 
-It also saves the wallpapers built into Windows
-(`C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\DesktopSpotlight`),
-which Desktop Spotlight shows until it has downloaded its own.
-
 The app scans these folders and skips icons, small images and portrait (phone)
 versions. It never saves the same image twice, even if you rename the files or
 edit their properties.
