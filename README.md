@@ -11,9 +11,35 @@ It doesn't need the Bing Wallpaper app and doesn't download anything.
 | Desktop (Windows 11) | `MicrosoftWindows.Client.CBS_cw5n1h2txyewy\LocalCache\Microsoft\IrisService\*` |
 | Lock screen | `Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy\LocalState\Assets` |
 
-The app scans both folders. It skips icons, small images and portrait (phone)
-versions, then saves each image as `Spotlight_<date>_<hash>.jpg`. It never saves
-the same image twice, even if you rename the files.
+It also saves the wallpapers built into Windows
+(`C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\DesktopSpotlight`),
+which Desktop Spotlight shows until it has downloaded its own.
+
+The app scans these folders and skips icons, small images and portrait (phone)
+versions. It never saves the same image twice, even if you rename the files or
+edit their properties.
+
+## Names and photo details
+
+For Desktop Spotlight images, Windows keeps the details shown by **Learn about
+this picture** in the registry, under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight`. The app
+names each file after the date it was saved and the photo's location, such as
+`2026-11-22 A pier in Corinthia, Greece.jpg`, and writes the rest into the file's
+properties (right-click → Properties → Details):
+
+| Property | Contains |
+|---|---|
+| Title | The location |
+| Subject | Spotlight's caption, e.g. "Peering over smooth seas" |
+| Authors, Copyright | The photo credit |
+| Comments | The description and the **Learn more** link on Bing |
+| Tags | `Windows Spotlight` and the location |
+
+Windows only lists details for the wallpapers it is currently rotating through,
+so `--install` is the way to get them for every image. Images whose details are
+gone (and lock screen images, which have none) are saved as
+`<date> Windows Spotlight.jpg`.
 
 ## Use
 
