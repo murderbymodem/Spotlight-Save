@@ -1,7 +1,7 @@
-# Spotlight Saver
+# Spotlight Save
 
 A small Windows app that copies the **Windows Spotlight** wallpapers already on
-your PC into `Pictures\Wallpaper`, so you keep them after Windows swaps them out.
+your PC into `Pictures\Spotlight`, so you keep them after Windows swaps them out.
 It doesn't need the Bing Wallpaper app and doesn't download anything.
 
 ## Where Windows keeps the images
@@ -40,12 +40,12 @@ gone (and lock screen images, which have none) are saved as
 ## Use
 
 ```
-spotlight-saver.exe              Save new wallpapers and show a summary
-spotlight-saver.exe --quiet      Save new wallpapers without any window
-spotlight-saver.exe --install    Also save them every hour (Task Scheduler)
-spotlight-saver.exe --uninstall  Remove the hourly task
-spotlight-saver.exe --next       Switch to the next Spotlight wallpaper
-spotlight-saver.exe --previous   Switch to the previous Spotlight wallpaper
+spotlight-save.exe              Save new wallpapers and show a summary
+spotlight-save.exe --quiet      Save new wallpapers without any window
+spotlight-save.exe --install    Also save them every hour (Task Scheduler)
+spotlight-save.exe --uninstall  Remove the hourly task
+spotlight-save.exe --next       Switch to the next Spotlight wallpaper
+spotlight-save.exe --previous   Switch to the previous Spotlight wallpaper
 ```
 
 `--next` and `--previous` move through the pictures Spotlight has downloaded
@@ -65,7 +65,7 @@ On Windows, with [Rust](https://rustup.rs) installed:
 cargo build --release
 ```
 
-The exe is `target\release\spotlight-saver.exe`.
+The exe is `target\release\spotlight-save.exe`.
 
 Publishing a GitHub release builds the exe automatically and attaches it to the
 release (see `.github/workflows/release.yml`). To add the exe to a release that

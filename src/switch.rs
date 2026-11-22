@@ -16,6 +16,7 @@ pub enum Direction {
 
 /// The position to move to in a list of `count` pictures, wrapping around at
 /// either end. None if there's nothing to switch to.
+#[cfg_attr(not(windows), allow(dead_code))] // Only switching on Windows uses it.
 fn step(index: u32, count: usize, direction: Direction) -> Option<u32> {
     let count = u32::try_from(count).ok()?;
     if count < 2 {

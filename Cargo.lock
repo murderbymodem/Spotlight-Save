@@ -139,7 +139,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "spotlight-saver"
+name = "spotlight-save"
 version = "1.0.0"
 dependencies = [
  "dirs",

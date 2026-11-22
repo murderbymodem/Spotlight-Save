@@ -1,15 +1,15 @@
-//! Spotlight Saver
+//! Spotlight Save
 //!
 //! Copies the Windows Spotlight images that Windows has already downloaded
-//! into `Pictures\Wallpaper`, so you keep them after Windows rotates them out.
+//! into `Pictures\Spotlight`, so you keep them after Windows rotates them out.
 //!
 //! Usage:
-//!   spotlight-saver.exe              Save new wallpapers and show a summary.
-//!   spotlight-saver.exe --quiet      Save new wallpapers without any window.
-//!   spotlight-saver.exe --install    Run quietly every hour (Task Scheduler).
-//!   spotlight-saver.exe --uninstall  Remove the scheduled task.
-//!   spotlight-saver.exe --next       Switch to the next Spotlight wallpaper.
-//!   spotlight-saver.exe --previous   Switch to the previous Spotlight wallpaper.
+//!   spotlight-save.exe              Save new wallpapers and show a summary.
+//!   spotlight-save.exe --quiet      Save new wallpapers without any window.
+//!   spotlight-save.exe --install    Run quietly every hour (Task Scheduler).
+//!   spotlight-save.exe --uninstall  Remove the scheduled task.
+//!   spotlight-save.exe --next       Switch to the next Spotlight wallpaper.
+//!   spotlight-save.exe --previous   Switch to the previous Spotlight wallpaper.
 
 // No console window: this is a GUI-subsystem app that only shows a message box.
 #![cfg_attr(windows, windows_subsystem = "windows")]
@@ -26,7 +26,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use info::{Catalog, Info};
 
-const TASK_NAME: &str = "Spotlight Saver";
+const TASK_NAME: &str = "Spotlight Save";
+
+/// The task's name before the app was renamed from Spotlight Saver. Installing
+/// or uninstalling also removes it, so an old install doesn't keep running.
+const OLD_TASK_NAME: &str = "Spotlight Saver";
 
 /// Files smaller than this are icons, logos and ad tiles, not wallpapers.
 const MIN_BYTES: u64 = 100 * 1024;
@@ -47,9 +51,9 @@ fn main() {
             Err(_) => std::process::exit(1),
         }
     } else if has("--install") {
-        report(install_task(), "Spotlight Saver will now save new wallpapers every hour.");
+        report(install_task(), "Spotlight Save will now save new wallpapers every hour.");
     } else if has("--uninstall") {
-        report(uninstall_task(), "The Spotlight Saver scheduled task was removed.");
+        report(uninstall_task(), "The Spotlight Save scheduled task was removed.");
     } else {
         let result = save_wallpapers();
         if has("--quiet") {
@@ -81,7 +85,7 @@ pub struct Summary {
 fn save_wallpapers() -> io::Result<Summary> {
     let pictures = dirs::picture_dir()
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Pictures folder not found"))?;
-    let dest = pictures.join("Wallpaper");
+    let dest = pictures.join("Spotlight");
     fs::create_dir_all(&dest)?;
 
     let catalog = Catalog::load();
@@ -269,13 +273,16 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
 fn install_task() -> io::Result<()> {
     let exe = std::env::current_exe()?;
     let action = format!("\"{}\" --quiet", exe.display());
+    let _ = schtasks(&["/Delete", "/F", "/TN", OLD_TASK_NAME]);
     schtasks(&["/Create", "/F", "/TN", TASK_NAME, "/SC", "HOURLY", "/TR", &action])?;
     // Save the current wallpapers right away too.
     save_wallpapers().map(|_| ())
 }
 
 fn uninstall_task() -> io::Result<()> {
-    schtasks(&["/Delete", "/F", "/TN", TASK_NAME])
+    let old = schtasks(&["/Delete", "/F", "/TN", OLD_TASK_NAME]);
+    // Succeed if either task was there to remove.
+    schtasks(&["/Delete", "/F", "/TN", TASK_NAME]).or(old)
 }
 
 fn schtasks(args: &[&str]) -> io::Result<()> {
@@ -309,7 +316,7 @@ mod ui {
 
     fn message_box(text: &str, style: u32) -> i32 {
         let text = wide(text);
-        let title = wide("Spotlight Saver");
+        let title = wide("Spotlight Save");
         unsafe { MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), style) }
     }
 
@@ -375,7 +382,7 @@ mod tests {
 
     #[test]
     fn unique_names() {
-        let dir = std::env::temp_dir().join(format!("spotlight-saver-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("spotlight-save-test-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let first = unique_path(&dir, "2026-11-22 Ronda, Spain", "jpg");
         assert_eq!(first.file_name().unwrap(), "2026-11-22 Ronda, Spain.jpg");
