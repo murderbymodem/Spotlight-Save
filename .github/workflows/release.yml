@@ -29,4 +29,4 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" target/release/spotlight-saver.exe --clobber
+        run: gh release upload "$TAG" target/release/spotlight-save.exe --clobber
