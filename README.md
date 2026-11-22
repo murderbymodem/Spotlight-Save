@@ -11,9 +11,31 @@ It doesn't need the Bing Wallpaper app and doesn't download anything.
 | Desktop (Windows 11) | `MicrosoftWindows.Client.CBS_cw5n1h2txyewy\LocalCache\Microsoft\IrisService\*` |
 | Lock screen | `Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy\LocalState\Assets` |
 
-The app scans both folders. It skips icons, small images and portrait (phone)
-versions, then saves each image as `Spotlight_<date>_<hash>.jpg`. It never saves
-the same image twice, even if you rename the files.
+The app scans these folders and skips icons, small images and portrait (phone)
+versions. It never saves the same image twice, even if you rename the files or
+edit their properties.
+
+## Names and photo details
+
+For Desktop Spotlight images, Windows keeps the details shown by **Learn about
+this picture** in the registry, under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight`. The app
+names each file after the date it was saved and the photo's location, such as
+`2026-11-22 A pier in Corinthia, Greece.jpg`, and writes the rest into the file's
+properties (right-click → Properties → Details):
+
+| Property | Contains |
+|---|---|
+| Title | The location |
+| Subject | Spotlight's caption, e.g. "Peering over smooth seas" |
+| Authors, Copyright | The photo credit |
+| Comments | The description and the **Learn more** link on Bing |
+| Tags | `Windows Spotlight` and the location |
+
+Windows only lists details for the wallpapers it is currently rotating through,
+so `--install` is the way to get them for every image. Images whose details are
+gone (and lock screen images, which have none) are saved as
+`<date> Windows Spotlight.jpg`.
 
 ## Use
 
@@ -22,7 +44,14 @@ spotlight-saver.exe              Save new wallpapers and show a summary
 spotlight-saver.exe --quiet      Save new wallpapers without any window
 spotlight-saver.exe --install    Also save them every hour (Task Scheduler)
 spotlight-saver.exe --uninstall  Remove the hourly task
+spotlight-saver.exe --next       Switch to the next Spotlight wallpaper
+spotlight-saver.exe --previous   Switch to the previous Spotlight wallpaper
 ```
+
+`--next` and `--previous` move through the pictures Spotlight has downloaded
+(usually four), wrapping around at the ends. They change which picture
+Spotlight shows rather than setting the wallpaper, so Spotlight stays on. Add
+`--quiet` to skip the confirmation message, for example in a desktop shortcut.
 
 Windows only keeps a few Spotlight images at a time, so use `--install` to catch
 each one. Move the exe to a permanent folder first, because the scheduled task

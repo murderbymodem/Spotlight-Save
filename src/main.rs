@@ -8,15 +8,23 @@
 //!   spotlight-saver.exe --quiet      Save new wallpapers without any window.
 //!   spotlight-saver.exe --install    Run quietly every hour (Task Scheduler).
 //!   spotlight-saver.exe --uninstall  Remove the scheduled task.
+//!   spotlight-saver.exe --next       Switch to the next Spotlight wallpaper.
+//!   spotlight-saver.exe --previous   Switch to the previous Spotlight wallpaper.
 
 // No console window: this is a GUI-subsystem app that only shows a message box.
 #![cfg_attr(windows, windows_subsystem = "windows")]
+
+mod info;
+mod jpeg;
+mod switch;
 
 use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use info::{Catalog, Info};
 
 const TASK_NAME: &str = "Spotlight Saver";
 
@@ -30,7 +38,15 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let has = |flag: &str| args.iter().any(|a| a.eq_ignore_ascii_case(flag));
 
-    if has("--install") {
+    if has("--next") || has("--previous") {
+        let direction = if has("--next") { switch::Direction::Next } else { switch::Direction::Previous };
+        match switch::switch(direction) {
+            Ok(message) if !has("--quiet") => ui::info(&message),
+            Ok(_) => {}
+            Err(e) if !has("--quiet") => ui::error(&format!("Could not switch the wallpaper:\n\n{e}")),
+            Err(_) => std::process::exit(1),
+        }
+    } else if has("--install") {
         report(install_task(), "Spotlight Saver will now save new wallpapers every hour.");
     } else if has("--uninstall") {
         report(uninstall_task(), "The Spotlight Saver scheduled task was removed.");
@@ -68,14 +84,16 @@ fn save_wallpapers() -> io::Result<Summary> {
     let dest = pictures.join("Wallpaper");
     fs::create_dir_all(&dest)?;
 
+    let catalog = Catalog::load();
     let known = existing_hashes(&dest);
     let mut seen = HashSet::new();
     let mut saved = 0;
     let mut already_had = 0;
+    let date = date_string(SystemTime::now());
 
     for file in candidate_files() {
         let Some((bytes, ext)) = read_wallpaper(&file) else { continue };
-        let hash = fnv1a(&bytes);
+        let hash = fnv1a(jpeg::picture_data(&bytes));
         if !seen.insert(hash) {
             continue; // Same image found in two places during this run.
         }
@@ -84,11 +102,12 @@ fn save_wallpapers() -> io::Result<Summary> {
             continue;
         }
 
-        let date = fs::metadata(&file)
-            .and_then(|m| m.modified())
-            .map(date_string)
-            .unwrap_or_else(|_| date_string(SystemTime::now()));
-        let target = dest.join(format!("Spotlight_{date}_{hash:016x}.{ext}"));
+        let info = catalog.get(&file);
+        let bytes = match info {
+            Some(info) => jpeg::with_info(&bytes, info),
+            None => bytes,
+        };
+        let target = unique_path(&dest, &file_stem(&date, info), ext);
         fs::write(&target, &bytes)?;
         saved += 1;
     }
@@ -158,32 +177,62 @@ fn image_extension(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
-/// Hashes of images already in the destination, read from their file names, so
-/// re-running never makes duplicates. (Renamed files are hashed from their contents.)
+/// Hashes of the images already in the destination, so re-running never makes
+/// duplicates. Only the picture data is hashed, so renaming a file or editing
+/// its properties doesn't make it look new.
 fn existing_hashes(dest: &Path) -> HashSet<u64> {
     let mut hashes = HashSet::new();
     let Ok(entries) = fs::read_dir(dest) else { return hashes };
     for entry in entries.flatten() {
         let path = entry.path();
-        if let Some(hash) = hash_from_name(&path) {
-            hashes.insert(hash);
-        } else if path.is_file() {
+        if path.is_file() {
             if let Ok(bytes) = fs::read(&path) {
-                hashes.insert(fnv1a(&bytes));
+                hashes.insert(fnv1a(jpeg::picture_data(&bytes)));
             }
         }
     }
     hashes
 }
 
-fn hash_from_name(path: &Path) -> Option<u64> {
-    let stem = path.file_stem()?.to_str()?;
-    let rest = stem.strip_prefix("Spotlight_")?;
-    let hex = rest.rsplit('_').next()?;
-    if hex.len() != 16 {
-        return None;
+/// "2026-11-22 A pier in Corinthia, Greece", or "2026-11-22 Windows Spotlight"
+/// when Windows no longer lists the image's details.
+fn file_stem(date: &str, info: Option<&Info>) -> String {
+    let location = info
+        .and_then(|i| i.location.as_deref())
+        .map(safe_file_name)
+        .filter(|s| !s.is_empty());
+    format!("{date} {}", location.as_deref().unwrap_or("Windows Spotlight"))
+}
+
+/// Removes characters Windows doesn't allow in file names and keeps it short.
+fn safe_file_name(s: &str) -> String {
+    let cleaned: String = s
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | '|' => '-',
+            '<' | '>' | ':' | '"' | '?' | '*' => ' ',
+            c if c.is_control() => ' ',
+            c => c,
+        })
+        .collect();
+    let words: Vec<&str> = cleaned.split_whitespace().collect();
+    let mut out: String = words.join(" ").chars().take(100).collect();
+    // Windows drops trailing dots and spaces from names.
+    while out.ends_with(['.', ' ']) {
+        out.pop();
     }
-    u64::from_str_radix(hex, 16).ok()
+    out
+}
+
+/// `dir\stem.ext`, or `dir\stem (2).ext` and so on if that name is taken.
+fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
+    let mut path = dir.join(format!("{stem}.{ext}"));
+    let mut n = 2;
+    while path.exists() {
+        path = dir.join(format!("{stem} ({n}).{ext}"));
+        n += 1;
+    }
+    path
 }
 
 /// 64-bit FNV-1a: stable across builds, which is all deduplication needs.
@@ -313,11 +362,27 @@ mod tests {
     }
 
     #[test]
-    fn names_round_trip() {
-        let hash = fnv1a(b"hello");
-        let name = format!("Spotlight_2025-11-21_{hash:016x}.jpg");
-        assert_eq!(hash_from_name(Path::new(&name)), Some(hash));
-        assert_eq!(hash_from_name(Path::new("holiday.jpg")), None);
+    fn file_names() {
+        let info = Info { location: Some("A pier in Corinthia, Greece".into()), ..Info::default() };
+        assert_eq!(file_stem("2026-11-22", Some(&info)), "2026-11-22 A pier in Corinthia, Greece");
+        assert_eq!(file_stem("2026-11-22", None), "2026-11-22 Windows Spotlight");
+        assert_eq!(file_stem("2026-11-22", Some(&Info::default())), "2026-11-22 Windows Spotlight");
+
+        assert_eq!(safe_file_name("Rio: \"Sugarloaf\" / Brazil?"), "Rio Sugarloaf - Brazil");
+        assert_eq!(safe_file_name("Washington, D.C."), "Washington, D.C");
+        assert_eq!(safe_file_name(&"x".repeat(300)).len(), 100);
+    }
+
+    #[test]
+    fn unique_names() {
+        let dir = std::env::temp_dir().join(format!("spotlight-saver-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let first = unique_path(&dir, "2026-11-22 Ronda, Spain", "jpg");
+        assert_eq!(first.file_name().unwrap(), "2026-11-22 Ronda, Spain.jpg");
+        fs::write(&first, b"x").unwrap();
+        let second = unique_path(&dir, "2026-11-22 Ronda, Spain", "jpg");
+        assert_eq!(second.file_name().unwrap(), "2026-11-22 Ronda, Spain (2).jpg");
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
