@@ -37,3 +37,8 @@ cargo build --release
 ```
 
 The exe is `target\release\spotlight-saver.exe`.
+
+Publishing a GitHub release builds the exe automatically and attaches it to the
+release (see `.github/workflows/release.yml`). To add the exe to a release that
+already exists, run the **Release** workflow from the Actions tab and enter its
+tag.
